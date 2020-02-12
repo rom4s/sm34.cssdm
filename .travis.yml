@@ -1,0 +1,76 @@
+branches:
+  only:
+    - master
+
+language: cpp
+
+jobs:
+  include:
+    # Linux
+    - name: 'Build on Linux (Ubuntu 14.04)'
+      os: linux
+      dist: trusty
+      python: "3.6"
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - llvm-toolchain-trusty-7
+            - llvm-toolchain-trusty-8
+          packages:
+            - lib32stdc++6
+            - lib32z1-dev
+            - libc6-dev-i386
+            - linux-libc-dev
+            - g++-multilib
+      before_install:
+        - export MMS_VER=1.10-dev
+        - export SM_VER=1.10-dev
+        - export PYTHON_VER=3.6.10
+        - export PATH=$HOME/.local/bin:$HOME/clang-9/usrbin:$PATH
+        - if [[ ! -s "$HOME/.pythonz/etc/bashrc" ]]; then (curl -kL https://raw.github.com/saghul/pythonz/master/pythonz-install | bash); fi
+        - source $HOME/.pythonz/etc/bashrc && $(pythonz locate $PYTHON_VER) --version >/dev/null 2>&1 || pythonz install $PYTHON_VER
+        - mkdir -p $HOME/.local/bin/ && ln -s $(pythonz locate $PYTHON_VER) $HOME/.local/bin/python
+        - python -m pip install --upgrade pip
+        - python -m pip install requests uritemplate discord-webhook
+        - if [ ! -d "$HOME/clang-9/bin" ]; then (curl -SL https://bitbucket.org/rom4s/other.get/downloads/clang-9-ubuntu-14.04.tar.xz | tar -xJC $HOME); fi
+        - if [ ! -d "$HOME/hl2sdk-episode1/public" ]; then (git clone https://github.com/alliedmodders/hl2sdk -b episode1 $HOME/hl2sdk-episode1); fi; (cd $HOME/hl2sdk-episode1 && git pull --rebase origin episode1)
+        - if [ ! -f "$HOME/mmsource/product.version" ]; then (git clone https://github.com/alliedmodders/metamod-source -b $MMS_VER $HOME/mmsource); fi; (cd $HOME/mmsource && git pull --rebase origin $MMS_VER)
+        - if [ ! -f "$HOME/sourcemod/product.version" ]; then (git clone https://github.com/alliedmodders/sourcemod --recursive -b $SM_VER $HOME/sourcemod); fi; (cd $HOME/sourcemod && git pull --rebase origin $SM_VER && git submodule update --init --recursive -f)
+        - if [ ! -d "$HOME/sourcemod-bin/addons" ]; then (mkdir -p $HOME/sourcemod-bin; curl -SL https://bitbucket.org/_4/smdrop-1.10/downloads/sourcemod-1.10.0-git6461-css34-linux.tar.gz | tar -xzC $HOME/sourcemod-bin); fi
+        - ambuild || (git clone https://github.com/alliedmodders/ambuild $HOME/ambuild && cd $HOME/ambuild && python setup.py build && python setup.py install --user)
+      script:
+        - builder/run/linux.sh
+      cache:
+        - $HOME/clang-9
+        - $HOME/.pythonz
+        - $HOME/hl2sdk-episode1
+        - $HOME/mmsource
+        - $HOME/sourcemod
+        - $HOME/sourcemod-bin
+    # Windows
+    - name: 'Build on Windows'
+      os: windows
+      python: "3.8"
+      before_install:
+        - export MMS_VER=1.10-dev
+        - export SM_VER=1.10-dev
+        - export HOME=/C/Users/$USERNAME
+        - export PATH=/C/Python38:/C/Python38/Scripts:$PATH
+        - if [ ! -d "/C/Python38/Scripts" ]; then (choco install python --version=3.8.0); fi
+        - python -m pip install --upgrade pip
+        - python -m pip install requests uritemplate discord-webhook
+        - if [ ! -d "$HOME/hl2sdk-episode1/public" ]; then (git clone https://github.com/alliedmodders/hl2sdk -b episode1 $HOME/hl2sdk-episode1); fi; (cd $HOME/hl2sdk-episode1 && git pull --rebase origin episode1)
+        - if [ ! -f "$HOME/mmsource/product.version" ]; then (git clone https://github.com/alliedmodders/metamod-source -b $MMS_VER $HOME/mmsource); fi; (cd $HOME/mmsource && git pull --rebase origin $MMS_VER)
+        - if [ ! -f "$HOME/sourcemod/product.version" ]; then (git clone https://github.com/alliedmodders/sourcemod --recursive -b $SM_VER $HOME/sourcemod); fi; (cd $HOME/sourcemod && git pull --rebase origin $SM_VER && git submodule update --init --recursive -f)
+        - if [ ! -d "$HOME/sourcemod-bin/addons" ]; then (mkdir -p $HOME/sourcemod-bin; (cd $HOME/sourcemod-bin; curl -SL https://bitbucket.org/_4/smdrop-1.10/downloads/sourcemod-1.10.0-git6461-css34-windows.zip -o $HOME/sourcemod-bin/t.zip && ls -la && pwd && unzip $HOME/sourcemod-bin/t.zip && rm $HOME/sourcemod-bin/t.zip)); fi
+        - ambuild || (git clone https://github.com/alliedmodders/ambuild $HOME/ambuild && cd $HOME/ambuild && python setup.py install)
+        - git config core.symlinks true && git reset --hard
+      script:
+        - powershell 'builder\run\windows.bat'
+      cache:
+        - /C/Python38
+        - $HOME/hl2sdk-episode1
+        - $HOME/mmsource
+        - $HOME/sourcemod
+        - $HOME/sourcemod-bin

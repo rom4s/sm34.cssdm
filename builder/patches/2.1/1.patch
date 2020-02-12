@@ -1,0 +1,315 @@
+diff --git a/AMBuildScript b/AMBuildScript
+index 86a307d..d9a8025 100644
+--- a/AMBuildScript
++++ b/AMBuildScript
+@@ -9,11 +9,11 @@ class CSSDM:
+ 
+ 		#Build SDK info
+ 		self.sdkInfo = { }
+-		self.sdkInfo['css'] =  {'sdk': 'HL2SDKCSS',   'ext': '2.css',  'def': '6',
+-		                         'name': 'CSS', 'platform': ['windows', 'linux', 'darwin']}
+-		
+-		self.sdkInfo['csgo'] =  {'sdk': 'HL2SDKCSGO',     'ext': '2.csgo',  'def': '11',
+-		                         'name': 'CSGO',           'platform': ['windows', 'linux']}
++
++		self.sdkInfo['ep1'] =  {'sdk': 'HL2SDKEP1',     'ext': '1.ep1',  'def': '1',
++		                         'name': 'EPISODEONE',           'platform': ['windows', 'linux']}
++		self.sdkInfo['ep1_plapi'] =  {'sdk': 'HL2SDKEP1',     'ext': '2.ep1',  'def': '1',
++		                         'name': 'EPISODEONE',           'platform': ['windows', 'linux']}
+ 
+ 		if AMBuild.mode == 'config':
+ 			#Detect compilers
+@@ -22,11 +22,10 @@ class CSSDM:
+ 			#Detect variables
+ 			envvars = {'MMSOURCE110': 'mmsource-1.10' }
+ 			envvars['SOURCEMOD110'] = 'sourcemod-1.10'
+-			envvars['SOURCEMOD-BIN'] = 'sourcemod-bin'
++			envvars['SOURCEMOD_BIN'] = 'sourcemod-bin'
+ 			#envvars['HL2SDKOBVALVE'] = 'hl2sdk-ob-valve'
+-			envvars['HL2SDKCSS'] = 'hl2sdk-css'
+-			if AMBuild.target['platform'] != 'darwin':
+-				envvars['HL2SDKCSGO'] = 'hl2sdk-csgo'
++			envvars['HL2SDKEP1'] = 'hl2sdk-ep1'
++
+ 
+ 			#Must have a path for each envvar (file a bug if you don't like this)
+ 			for i in envvars:
+@@ -184,7 +183,7 @@ class CSSDM:
+ 			self.compiler.AddToListVar('RCINCLUDES', os.path.join(AMBuild.sourceFolder, 'public'))
+ 			self.compiler.AddToListVar('RCINCLUDES',
+ 			                           os.path.join(AMBuild.outputFolder, 'includes'))
+-		self.smBinPath = AMBuild.cache['SOURCEMOD-BIN']
++		self.smBinPath = AMBuild.cache['SOURCEMOD_BIN']
+ 		self.mmsPath = AMBuild.cache['MMSOURCE110']
+ 		self.smSourcePath = AMBuild.cache['SOURCEMOD110']
+ 
+@@ -216,6 +215,9 @@ class CSSDM:
+ 	def PreSetupHL2Job(self, job, builder, sdk):
+ 		info = self.sdkInfo[sdk]
+ 		sdkPath = AMBuild.cache[info['sdk']]
++
++		if sdk.startswith('ep1'):
++			sdk = 'ep1'
+ 		
+ 		if AMBuild.target['platform'] == 'linux':
+ 			if sdk == 'ep1':
+@@ -276,13 +278,16 @@ class CSSDM:
+ 			if sdk == 'csgo':
+ 				builder.AddObjectFiles(['interfaces_i486.a'])
+ 
+-	def DefaultHL2Compiler(self, path, sdk, noLink = False, oldMms = '-legacy'):
++	def DefaultHL2Compiler(self, path, sdk, noLink = False, oldMms = '-legacy', sdk_full = False):
+ 		compiler = self.DefaultCompiler()
+ 
+ 		mms = 'core'
+-		if sdk == 'ep1':
++		if sdk_full and sdk_full['ext'] == '1.ep1':
+ 			mms += oldMms
+ 
++		if sdk.startswith('ep1'):
++			sdk = 'ep1'
++
+ 		compiler['CXXINCLUDES'].append(os.path.join(self.mmsPath, mms))
+ 		compiler['CXXINCLUDES'].append(os.path.join(self.mmsPath, mms, 'sourcehook'))
+ 		compiler['CXXINCLUDES'].append(os.path.join(self.smSourcePath, 'public'))
+diff --git a/ExtensionBuilder b/ExtensionBuilder
+index b035755..1aa0c48 100644
+--- a/ExtensionBuilder
++++ b/ExtensionBuilder
+@@ -2,15 +2,12 @@
+ import os
+ 
+ for i in CSSDM.sdkInfo:
+-	if i != 'css' and i != 'csgo':
+-		continue
+-	
+ 	sdk = CSSDM.sdkInfo[i]
+ 	
+ 	if AMBuild.target['platform'] not in sdk['platform']:
+ 		continue
+ 
+-	compiler = CSSDM.DefaultHL2Compiler('.', i)
++	compiler = CSSDM.DefaultHL2Compiler('.', i, sdk_full=sdk)
+ 	compiler['CXXINCLUDES'].append(os.path.join(AMBuild.sourceFolder, 'sdk'))
+ 
+ 	name = 'cssdm.ext.' + sdk['ext']
+diff --git a/PackageScript b/PackageScript
+index 3ac2f2b..25552e3 100644
+--- a/PackageScript
++++ b/PackageScript
+@@ -72,7 +72,7 @@ folders = [['cfg'],
+ 					 ['cfg', 'cssdm', 'extra'],
+ 					 ['cfg', 'cssdm', 'maps'],
+ 					 ['cfg', 'cssdm', 'spawns', 'cstrike'],
+-					 ['cfg', 'cssdm', 'spawns', 'csgo'],
++					#  ['cfg', 'cssdm', 'spawns', 'csgo'],
+ 				   ['addons', 'sourcemod'],
+ 					 ['addons', 'sourcemod', 'extensions'],
+ 					 ['addons', 'sourcemod', 'gamedata'],
+@@ -93,7 +93,7 @@ job.AddCommand(CopyFolder(['scripting', 'include'], ['addons', 'sourcemod', 'scr
+ job.AddCommand(CopyFolder(['translations'], ['addons', 'sourcemod', 'translations']))
+ job.AddCommand(CopyFolder(['cfg'], ['cfg', 'cssdm']))
+ job.AddCommand(CopyFolder(['cfg', 'spawns', 'cstrike'], ['cfg', 'cssdm', 'spawns', 'cstrike']))
+-job.AddCommand(CopyFolder(['cfg', 'spawns', 'csgo'], ['cfg', 'cssdm', 'spawns', 'csgo']))
++# job.AddCommand(CopyFolder(['cfg', 'spawns', 'csgo'], ['cfg', 'cssdm', 'spawns', 'csgo']))
+ job.AddCommand(CopyFile(os.path.join(AMBuild.sourceFolder, 'license.txt'),
+ 												os.path.join('cfg', 'cssdm', 'extra')))
+ job.AddCommand(CopyFile(os.path.join(AMBuild.sourceFolder, 'changelog.txt'),
+@@ -118,9 +118,7 @@ def AddHL2Library(name, dest):
+ pdb_list = []
+ 
+ # Copy loader binaries
+-AddNormalLibrary('cssdm.ext.2.css', 'extensions')
+-if AMBuild.target['platform'] != 'darwin':
+-	AddNormalLibrary('cssdm.ext.2.csgo', 'extensions')
++AddHL2Library('cssdm.ext', 'extensions')
+ 
+ job.AddCommandGroup(bincopies)
+ 
+diff --git a/buildbot/Versioning b/buildbot/Versioning
+index 15e480d..e44d629 100644
+--- a/buildbot/Versioning
++++ b/buildbot/Versioning
+@@ -7,15 +7,20 @@ import ambuild.command as command
+ 
+ #Quickly try to ascertain the current repository revision
+ def GetVersion():
+-	with open(os.path.join(AMBuild.sourceFolder, '.git', 'HEAD')) as fp:
++	git_dir = os.path.join(AMBuild.sourceFolder, '.git')
++	if os.path.isfile(git_dir):
++		with open(git_dir, 'r') as hFile:
++			git_dir = os.path.realpath(os.path.join(git_dir, '..', hFile.readline().strip().replace('gitdir: ', '')))
++
++	with open(os.path.join(git_dir, 'HEAD')) as fp:
+ 		head_contents = fp.read().strip()
+ 		if re.search('^[a-fA-F0-9]{40}$', head_contents):
+-			git_head_path = os.path.join(AMBuild.sourceFolder, '.git', 'HEAD')
++			git_head_path = os.path.join(git_dir, 'HEAD')
+ 		else:
+ 			git_state = head_contents.split(':')[1].strip()
+-			git_head_path = os.path.join(AMBuild.sourceFolder, '.git', git_state)
++			git_head_path = os.path.join(git_dir, git_state)
+ 			if not os.path.exists(git_head_path):
+-				git_head_path = os.path.join(AMBuild.sourceFolder, '.git', 'HEAD')
++				git_head_path = os.path.join(git_dir, 'HEAD')
+ 
+ 	return open(git_head_path, 'r').read().strip();
+ 	
+@@ -23,7 +28,7 @@ def PerformReversioning():
+ 	rev = GetVersion()
+ 	
+ 	args = ['git', 'rev-list', '--count', 'HEAD', AMBuild.sourceFolder]
+-	cset = command.RunDirectCommand(AMBuild, args).stdoutText
++	cset = command.RunDirectCommand(AMBuild, args).stdoutText.rstrip()
+ 	
+ 	cacheFile = os.path.join(AMBuild.outputFolder, '.ambuild', 'hgcache')
+ 	cache = Cache(cacheFile)
+diff --git a/cssdm_config.cpp b/cssdm_config.cpp
+index 3a49ebc..83a343f 100644
+--- a/cssdm_config.cpp
++++ b/cssdm_config.cpp
+@@ -32,9 +32,9 @@
+ #include "cssdm_headers.h"
+ #include "cssdm_version.h"
+ 
+-static void ChangeStatus(IConVar *cvar, const char *value, float flOldValue);
+-static void ChangeFFAStatus(IConVar *cvar, const char *value, float flOldValue);
+-static void ChangeSpawnStatus(IConVar *cvar, const char *value, float flOldValue);
++static void ChangeStatus(ConVar *cvar, const char *value);
++static void ChangeFFAStatus(ConVar *cvar, const char *value);
++static void ChangeSpawnStatus(ConVar *cvar, const char *value);
+ 
+ ConVar cssdm_ragdoll_time("cssdm_ragdoll_time", "2", 0, "Sets ragdoll stay time", true, 0.0, true, 20.0);
+ ConVar cssdm_respawn_wait("cssdm_respawn_wait", "0.75", 0, "Sets respawn wait time");
+@@ -71,11 +71,10 @@ public:
+ 
+ void SM_InitConCommandBase()
+ {
+-	g_pCVar = icvar;
+-	ConVar_Register(0, &s_LinkConVars);
++	ConCommandBaseMgr::OneTimeInit(&s_LinkConVars);
+ }
+ 
+-static void ChangeStatus(IConVar *cvar, const char *value, float flOldValue)
++static void ChangeStatus(ConVar *cvar, const char *value)
+ {
+ 	if (cssdm_enabled.GetInt())
+ 	{
+@@ -85,7 +84,7 @@ static void ChangeStatus(IConVar *cvar, const char *value, float flOldValue)
+ 	}
+ }
+ 
+-static void ChangeFFAStatus(IConVar *cvar, const char *value, float flOldValue)
++static void ChangeFFAStatus(ConVar *cvar, const char *value)
+ {
+ 	if (cssdm_ffa_enabled.GetInt() && !DM_FFA_IsPatched() && DM_FFA_IsPrepared())
+ 	{
+@@ -95,7 +94,7 @@ static void ChangeFFAStatus(IConVar *cvar, const char *value, float flOldValue)
+ 	}
+ }
+ 
+-static void ChangeSpawnStatus(IConVar *cvar, const char *value, float flOldValue)
++static void ChangeSpawnStatus(ConVar *cvar, const char *value)
+ {
+ 	if (strcmp(value, cssdm_spawn_method.GetString()) == 0)
+ 	{
+diff --git a/cssdm_ctrl.cpp b/cssdm_ctrl.cpp
+index 475ba2f..3d901bc 100644
+--- a/cssdm_ctrl.cpp
++++ b/cssdm_ctrl.cpp
+@@ -135,6 +135,7 @@ bool DM_Enable()
+ 
+ CON_COMMAND(cssdm, "CS:S DM console menu")
+ {
++	static CCommand args;
+ 	int argc = args.ArgC();
+ 	if (argc < 2)
+ 	{
+diff --git a/cssdm_events.cpp b/cssdm_events.cpp
+index 0546dd0..069ad85 100644
+--- a/cssdm_events.cpp
++++ b/cssdm_events.cpp
+@@ -146,13 +146,14 @@ void DM_SchedRespawn(int client)
+ 	player->respawn_timer = timersys->CreateTimer(&s_PlayerSpawner, DM_GetRespawnWait(), data, 0);
+ }
+ 
+-void OnClientCommand_Post(edict_t *edict, const CCommand &args)
++void OnClientCommand_Post(edict_t *edict)
+ {
+ 	if (!g_IsRunning)
+ 	{
+ 		return;
+ 	}
+ 
++	static CCommand args;
+ 	const char *cmd = args.Arg(0);
+ 
+ 	if (strcmp(cmd, "joinclass") == 0)
+diff --git a/cssdm_events.h b/cssdm_events.h
+index ed27dc9..a03be87 100644
+--- a/cssdm_events.h
++++ b/cssdm_events.h
+@@ -61,7 +61,7 @@ DECLARE_EVENT(item_pickup);
+ class CCommand;
+ 
+ void DM_ClearRagdollTimers();
+-void OnClientCommand_Post(edict_t *edict, const CCommand &args);
++void OnClientCommand_Post(edict_t *edict);
+ void OnClientDropWeapons(CBaseEntity *pEntity);
+ void OnClientDroppedWeapon(CBaseEntity *pEntity, CBaseEntity *pWeapon);
+ 
+diff --git a/cssdm_headers.h b/cssdm_headers.h
+index 2c0d8c6..34df447 100644
+--- a/cssdm_headers.h
++++ b/cssdm_headers.h
+@@ -46,4 +46,25 @@ extern bool g_IsInGlobalShutdown;
+ extern ISourcePawnEngine *spengine;
+ extern ICvar *icvar;
+ 
++class CCommand
++{
++public:
++    inline const char *ArgS() const
++    {
++        return engine->Cmd_Args();
++    }
++    inline int ArgC() const
++    {
++        return engine->Cmd_Argc();
++    }
++    inline const char *Arg(int index) const
++    {
++        return engine->Cmd_Argv(index);
++    }
++
++    static int MaxCommandLength() { return 512; }
++};
++
++#define CVAR_INTERFACE_VERSION VENGINE_CVAR_INTERFACE_VERSION
++
+ #endif //_INCLUDE_CSSDM_HEADERS_H_
+diff --git a/cssdm_main.cpp b/cssdm_main.cpp
+index 177bf45..ff1cb2f 100644
+--- a/cssdm_main.cpp
++++ b/cssdm_main.cpp
+@@ -41,7 +41,7 @@
+ SH_DECL_HOOK3_void(IServerGameDLL, ServerActivate, SH_NOATTRIB, 0, edict_t *, int, int);
+ SH_DECL_HOOK0_void(IServerGameDLL, LevelShutdown, SH_NOATTRIB, 0)
+ SH_DECL_HOOK0_void(IServerGameDLL, DLLShutdown, SH_NOATTRIB, false);
+-SH_DECL_HOOK2_void(IServerGameClients, ClientCommand, SH_NOATTRIB, false, edict_t *, const CCommand &);
++SH_DECL_HOOK1_void(IServerGameClients, ClientCommand, SH_NOATTRIB, 0, edict_t *);
+ 
+ Deathmatch g_DM;
+ IGameEventManager2 *gameevents = NULL;
+diff --git a/cssdm_utils.cpp b/cssdm_utils.cpp
+index 7bab25e..9bd60ba 100644
+--- a/cssdm_utils.cpp
++++ b/cssdm_utils.cpp
+@@ -30,6 +30,7 @@
+ #include "cssdm_includesdk.h"
+ #include <sh_list.h>
+ #include <sh_memory.h>
++#include <datamap.h>
+ 
+ using namespace SourceHook;
+ 
