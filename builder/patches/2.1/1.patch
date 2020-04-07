@@ -258,6 +258,46 @@ index ed27dc9..a03be87 100644
  void OnClientDropWeapons(CBaseEntity *pEntity);
  void OnClientDroppedWeapon(CBaseEntity *pEntity, CBaseEntity *pWeapon);
  
+diff --git a/cssdm_ffa.cpp b/cssdm_ffa.cpp
+index 4f260ba..3028796 100644
+--- a/cssdm_ffa.cpp
++++ b/cssdm_ffa.cpp
+@@ -103,17 +103,18 @@ bool DM_Prepare_FFA(char *error, size_t maxlength)
+ 		snprintf(error, maxlength, "Could not find \"WantsLagComp\" signature!");
+ 		return false;
+ 	}
++#if SOURCE_ENGINE != SE_EPISODEONE
+ 	if (!g_pDmConf->GetMemSig("CalcDominationAndRevenge", &g_domrev_addr) || !g_domrev_addr)
+ 	{
+ 		snprintf(error, maxlength, "Could not find \"CalcDominationAndRevenge\" signature!");
+ 		return false;
+ 	}
++#endif
+ 	if (!g_pDmConf->GetMemSig("CGameRules", &gamerules) || !gamerules)
+ 	{
+ 		snprintf(error, maxlength, "Could not find \"CGameRules\" signature!");
+ 		return false;
+ 	}
+-	
+ 	if (!g_pDmConf->GetOffset("LagCompPatch", &g_lagcomp_offset)
+ 		|| !g_lagcomp_offset)
+ 	{
+@@ -125,6 +126,7 @@ bool DM_Prepare_FFA(char *error, size_t maxlength)
+ 		return false;
+ 	}
+ 
++#if SOURCE_ENGINE != SE_EPISODEONE
+ 	if (!g_pDmConf->GetOffset("CalcDomRevPatch", &g_domrev_offset)
+ 		|| !g_domrev_offset)
+ 	{
+@@ -135,6 +137,7 @@ bool DM_Prepare_FFA(char *error, size_t maxlength)
+ 	{
+ 		return false;
+ 	}
++#endif
+ 
+ 	if (!g_pDmConf->GetOffset("TakeDmgPatch1", &g_takedmg_offset[0])
+ 		|| !g_takedmg_offset[0])
 diff --git a/cssdm_headers.h b/cssdm_headers.h
 index 2c0d8c6..34df447 100644
 --- a/cssdm_headers.h
